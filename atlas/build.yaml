@@ -1,0 +1,20 @@
+# Base-image mapping per architecture. Pinned to whatever the canonical
+# home-assistant/addons/ssh ships at Phase 0 (2026-05-16). Bump in lockstep.
+#
+# Note: HA developer docs (Supervisor 2026.04.0+) say build.yaml is deprecated
+# in favor of explicit FROM ... and LABEL ... in the Dockerfile. The canonical
+# SSH addon still ships build.yaml as of Phase 0 - Atlas mirrors for belt-and-
+# suspenders compatibility. If a future Phase 0 finds the SSH addon has
+# migrated, this file is dropped and the LABEL statements in the Dockerfile
+# carry the equivalent metadata.
+
+build_from:
+  aarch64: ghcr.io/home-assistant/aarch64-base:3.23-2026.04.0
+  amd64: ghcr.io/home-assistant/amd64-base:3.23-2026.04.0
+
+args: {}
+
+labels:
+  org.opencontainers.image.title: "Atlas (Apex)"
+  org.opencontainers.image.source: "https://github.com/waelsamy/home-assistant-dash"
+  org.opencontainers.image.licenses: "MIT"

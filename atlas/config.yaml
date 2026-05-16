@@ -1,0 +1,67 @@
+# Manifest reference: https://developers.home-assistant.io/docs/add-ons/configuration
+# Verified against home-assistant/addons/ssh/config.yaml at Phase 0 (Supervisor 2026.04.0+).
+# See codev/projects/15-v2-rebuild-plan-8-ha-add-on-pa/preflight.md for the Phase 0 findings.
+
+name: Atlas (Apex)
+version: "0.1.0"
+slug: atlas
+description: A modern, design-forward dashboard for Home Assistant. Hub (1280x800 wall tablet) and Mobile surfaces from a single locked design system.
+url: https://github.com/waelsamy/home-assistant-dash
+arch:
+  - aarch64
+  - amd64
+
+# Pre-built per-arch images live at ghcr.io/waelsamy/atlas-dashboard-addon-{aarch64,amd64},
+# built by .github/workflows/addon-release.yml on every v* tag push (Plan 8.5 +
+# Plan 8.7 sync). Supervisor honors this `image:` when the addon is installed
+# via the custom-repo URL https://github.com/waelsamy/atlas-dashboard-addon
+# (Plan 8.7 — distribution repo). For the in-repo manual install path (Plan 8),
+# Supervisor still builds locally regardless.
+image: "ghcr.io/waelsamy/atlas-dashboard-addon-{arch}"
+
+# atlas-backend handles signal handling + graceful shutdown from Plan 6 main.go.
+# HA's s6-overlay would conflict.
+init: false
+
+# Wait for HA core + integrations before starting; discover/* needs registries
+# populated when first hit.
+startup: application
+
+# Supervisor pings /api/health periodically; restarts on hang. Plan 6's health
+# endpoint returns within milliseconds.
+watchdog: "http://[HOST]:[PORT:8080]/api/health"
+
+# Ingress = HA's reverse proxy. Atlas appears as a panel in HA's sidebar.
+ingress: true
+ingress_port: 8080
+ingress_entry: "/"
+
+# Panel customization in HA's sidebar.
+panel_icon: mdi:view-dashboard-variant
+panel_title: Atlas
+panel_admin: true  # Admin-only - matches single-admin-PIN model (parent spec section 4.5).
+
+# Ingress-only network surface. ports value `null` means no host port mapped.
+ports:
+  8080/tcp: null
+
+# API privilege flags intentionally omitted (least-privilege per spec iter2):
+# - No hassio_api / hassio_role: Plan 6 uses SUPERVISOR_TOKEN (auto-injected
+#   regardless of API flag) to reach http://supervisor/core.
+# - No homeassistant_api: not needed for Plan 8.
+# Plan 9 adds the smallest privilege when device-pairing flow actually needs
+# Supervisor or Core REST access.
+
+# Persistent storage: /data is auto-provisioned by Supervisor for every
+# addon (no `map:` entry needed). Plan 6's store.go writes to /data/atlas.db;
+# the Dockerfile declares VOLUME ["/data"] which makes it the persistent
+# mount across restarts and upgrades.
+#
+# `map: [addon_config:rw]` (which exposes /addon_configs/<slug>/) is
+# intentionally omitted — Plan 6's backend doesn't use that path. Removing
+# the map entry shrinks the addon's permission surface.
+
+# Plan 8 ships zero user-facing options. Settings live in /api/config; the
+# admin-PIN flow lands in Plan 9.
+options: {}
+schema: {}
