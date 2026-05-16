@@ -41,7 +41,7 @@ RUN go mod download
 COPY backend/ ./
 # Bring in the freshly-built SPA so //go:embed all:web/dist works.
 COPY --from=web-build /app/web/dist ./web/dist
-ARG VERSION=0.1.1
+ARG VERSION=0.1.2
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build \
     -trimpath \
     -ldflags="-s -w -X main.Version=${VERSION}" \

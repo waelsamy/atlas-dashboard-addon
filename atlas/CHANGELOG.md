@@ -4,6 +4,36 @@ All notable changes to the Atlas (Apex) add-on are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] - 2026-05-16
+
+### Fixed
+
+- **Supervisor WS path.** `/api/discover/*` returned 502 in addon mode
+  because the backend's WebSocket URL builder stripped the `/core` segment
+  from `http://supervisor/core`, producing `ws://supervisor/api/websocket`
+  (a non-existent endpoint) instead of `ws://supervisor/core/websocket`
+  (the documented [supervisor proxy WS endpoint][supervisor-core]). Same
+  bug in two places (registry queries in `haclient` + the live `/api/ha-ws`
+  reverse proxy in `haws`); both fixed via a shared `internal/hapath`
+  helper used from both call sites. End-to-end effect: with v0.1.1 the SPA
+  rendered but fell back to APEX_FIXTURES (dummy rooms/devices) on every
+  load because the discover endpoints 502'd; v0.1.2 shows real rooms, real
+  entities, real state, and service calls actually toggle real devices.
+
+[supervisor-core]: https://developers.home-assistant.io/docs/api/supervisor/endpoints#core
+
+### Lessons
+
+- **Defect class — duplicated URL construction.** Plan 6 inlined the WS
+  URL builder in two files (`haclient/client.go` and `haws/proxy.go`)
+  rather than extracting a helper. Both diverged from the real HA URL
+  shape in the same way, and only one Plan-8.x verification (against a
+  real Supervisor) was strong enough to surface it. Recorded in
+  `codev/resources/lessons-learned.md`: when the same path/URL
+  construction logic appears in two places, extract a shared helper from
+  the start. Inline duplication doubles the surface for bugs that only
+  surface against real infrastructure.
+
 ## [0.1.1] - 2026-05-16
 
 ### Fixed
