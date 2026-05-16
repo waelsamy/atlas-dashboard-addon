@@ -4,6 +4,35 @@ All notable changes to the Atlas (Apex) add-on are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-05-16
+
+### Fixed
+
+- **HA ingress path-prefix compatibility.** SPA now renders correctly inside
+  HA's ingress iframe — at the root URL AND on nested-route hard-refresh.
+  Previously, asset URLs (`/assets/*`), REST endpoints (`/api/*`), and the
+  WS proxy URL (`/api/ha-ws`) all resolved at the host root instead of under
+  the ingress prefix (`/api/hassio_ingress/<token>/`). Result: blank screen
+  on first open. Fix has two coordinated pieces:
+  1. **Backend `<base href>` injection.** The Go backend reads HA's
+     documented `X-Ingress-Path` request header and injects a `<base>` tag
+     into served `index.html`, pinning `document.baseURI` to the SPA mount
+     root regardless of which nested client-side route the user landed on.
+     Without ingress (standalone Docker / dev) it injects `<base href="/">`.
+  2. **Frontend `appBase()` + Vite `base: './'`.** A runtime helper reads
+     `document.baseURI` (now stable thanks to the backend injection) and
+     prepends the mount prefix to fetch and WS URLs. Built HTML emits
+     relative asset URLs that resolve against the same `document.baseURI`.
+
+  Standalone Docker mode unaffected (`<base href="/">` + empty `appBase()`
+  is the no-op default).
+
+### Plan 8.x closeout
+
+With 0.1.1, Atlas is functionally installable + usable as an HA add-on at
+any HA Supervisor instance via the custom-repo URL
+<https://github.com/waelsamy/atlas-dashboard-addon>.
+
 ## [0.1.0] - 2026-05-16
 
 First public release. Atlas (Apex) installs via the custom-repo URL

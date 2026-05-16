@@ -89,6 +89,10 @@ When Plan 8.7 ships the install path, the most common failure modes will be:
 - **Updating the add-on:** Supervisor auto-detects new versions in the distribution repo and offers an Update button. SQLite state in `/data/atlas.db` persists across updates.
 - **Uninstalling:** Stop → Uninstall. Supervisor removes the `/data/` volume automatically.
 
+## Local development
+
+For contributors iterating on Atlas itself (not just installing it), the source repo ships a Home Assistant Apps devcontainer that runs a local Supervisor + builds Atlas in-place. See [DEVELOPMENT.md](https://github.com/waelsamy/home-assistant-dash/blob/main/DEVELOPMENT.md) for the full walkthrough. The short version: VS Code + Dev Containers extension → **Reopen in Container** → `ha apps rebuild --force "local_atlas"` per iteration.
+
 ## Reporting issues
 
 File issues against the upstream Atlas repository:
