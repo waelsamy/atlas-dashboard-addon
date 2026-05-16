@@ -4,6 +4,66 @@ All notable changes to the Atlas (Apex) add-on are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/).
 
+## [0.1.4] - 2026-05-16
+
+### Fixed
+
+- **WebSocket read limit.** After v0.1.3 fixed HA Core token scope,
+  `/api/discover/areas` and `/api/discover/floors` returned real registry
+  data — but `/api/discover/entities` still returned 502 `ha_unreachable`.
+  Root cause: the backend's `coder/websocket` connections inherited the
+  library's default read limit of 32768 bytes, while HA's `entity_registry`
+  response on real installations easily exceeds that (hundreds of KiB to
+  multi-MiB; HA stores ~500 bytes per entry). Once HA sent a frame larger
+  than the limit, `coder/websocket` closed the conn with
+  `StatusMessageTooBig` and the close error wrapped to `ErrUnreachable` —
+  surfacing as the misleading 502 `ha_unreachable`. The endpoint was
+  reachable and auth was good; the frame was just too big. v0.1.4 raises
+  the read limit to 10 MiB (~20K entities of headroom) on all three
+  backend WS read paths: `haclient.wsCommand` (registry queries),
+  `haws/proxy` browser-side `Accept` (browser → proxy reads), and
+  `haws/proxy` HA-side `Dial` (HA → proxy reads). The live WS proxy now
+  survives HA's `subscribe_entities` initial-state frame for arbitrary
+  install sizes (within the 10 MiB ceiling), so the dashboard's live
+  state stream stays connected.
+
+### Plan 8.x closeout — chain closed
+
+With 0.1.4, Atlas is functionally complete as an HA add-on across all
+plan-8 surfaces. The Plan 8.x chain is officially closed:
+
+- **8.7** — distribution repo + GHCR build pipeline (custom-repo install
+  works end-to-end).
+- **8.8** — ingress path-prefix compatibility (SPA renders inside HA's
+  ingress iframe at root and on nested-route hard-refresh).
+- **8.9** — supervisor WebSocket path (backend dials
+  `ws://supervisor/core/websocket`, not the non-existent
+  `ws://supervisor/api/websocket`).
+- **8.10** — HA Core API token scope (`SUPERVISOR_TOKEN` authenticates
+  against HA Core's `auth_required` handshake).
+- **8.11** — WS read limit (this entry; closes the chain).
+
+Plan 9 picks up the remaining hardening: admin-PIN gate on state-mutating
+endpoints, `X-Remote-User-*` HA ingress headers for trust-model
+alignment, snapshot reconnect cache for instant render on reconnect.
+
+### Lessons
+
+- **WebSocket client libraries default to small read-frame limits unsuited
+  to registry-style payloads.** `coder/websocket`'s 32 KiB default is
+  appropriate for chat-style protocols but is exceeded by any non-trivial
+  HA registry response. When a Go service uses a WS library to fetch list
+  responses from an external service (HA registries, Kafka admin APIs,
+  gRPC-over-WS bridges, etc.), explicitly set the read limit to fit the
+  payload — and audit every `websocket.Dial` / `websocket.Accept` call
+  site in the same package as a class, not one at a time. The
+  `ErrUnreachable`-wrapped `StatusMessageTooBig` error was misleading
+  during debugging: the endpoint was reachable, the auth completed, the
+  frame was just too big. Future debugging of `ha_unreachable` on a code
+  path that previously worked should check frame size first. Full
+  defect-class write-up in `codev/resources/lessons-learned.md` under
+  `## Plan 8.11 — WebSocket Read Limit (entity_registry size)`.
+
 ## [0.1.3] - 2026-05-16
 
 ### Fixed
