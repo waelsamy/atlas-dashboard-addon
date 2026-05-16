@@ -4,6 +4,46 @@ All notable changes to the Atlas (Apex) add-on are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/).
 
+## [0.1.5] - 2026-05-17
+
+### Fixed
+
+- **Entity area resolution + Lovelace-parity filter.** Previously
+  `/api/discover/entities` returned all 1,182 active entities but only ~22
+  had `area_id` populated (1.9%). The room-based UI looked empty even though
+  the user had 15 areas defined. Root cause: HA's standard pattern (used by
+  Lovelace auto-area dashboards) is `entity.area_id ?? device.area_id` —
+  most integrations set area on the *device*, not on each entity the device
+  produces. Atlas's backend never fetched `device_registry`, so the join
+  never happened.
+
+### Added
+
+- Backend `haclient.DeviceRegistry()` method (WS `config/device_registry/list`)
+  + `Device` struct.
+- Backend `discoverHandlers.entities` now fetches both registries and joins
+  via the standard inheritance rule. Coverage jumps from 22 to ~987 entities
+  with `area_id` (83.5% of all entities — the remaining 17% are
+  legitimately unassigned: automations, scripts, sun/weather sensors).
+
+### Changed
+
+- `/api/discover/entities` now filters like HA Lovelace's auto-area view:
+  drops `disabled_by`, `hidden_by`, `entity_category: "config"` (device
+  setup options like power-on-behavior), and `entity_category: "diagnostic"`
+  (battery/signal/etc. read-outs for ops). For a typical install this brings
+  the response down from ~2,000 to ~450 user-facing entities — matching
+  what Lovelace renders. Hidden entities are no longer surfaced with
+  `hidden: true` in the response; that flag stays for forward-compat but is
+  always `false` post-filter.
+
+### Lessons (recorded in `codev/resources/lessons-learned.md`)
+
+- When implementing an external HA client, look at what registries Lovelace
+  itself fetches — there are four (area, floor, device, entity), not three.
+  The entity→device→area inheritance is "just how the model works" but
+  isn't called out as a separate gotcha in HA docs.
+
 ## [0.1.4] - 2026-05-16
 
 ### Fixed
