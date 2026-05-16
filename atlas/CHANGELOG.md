@@ -4,6 +4,67 @@ All notable changes to the Atlas (Apex) add-on are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/).
 
+## [0.1.3] - 2026-05-16
+
+### Fixed
+
+- **HA Core API authorization.** `/api/discover/*` returned 502
+  `ha_unauthorized` in addon mode because the addon manifest did not
+  declare `homeassistant_api: true`. Without that flag, Supervisor does
+  not grant `SUPERVISOR_TOKEN` the scope needed to authenticate against
+  HA Core's REST + WebSocket APIs at `http://supervisor/core/api/*` and
+  `ws://supervisor/core/websocket` — the WS `auth_required` handshake
+  fails, and the discover endpoints surface that failure as `502
+  ha_unauthorized`. v0.1.3 declares the flag; on the next addon restart
+  Supervisor re-issues the token with HA Core scope, the auth handshake
+  completes, and the discover endpoints return real registry data.
+
+### Correction to [0.1.2] release notes
+
+The previous entry stated that v0.1.2 "shows real rooms, real entities,
+real state, and service calls actually toggle real devices." That was
+aspirational. v0.1.2 fixed the WS *path* (Plan 8.9) — the backend now
+reaches `ws://supervisor/core/websocket` instead of the non-existent
+`ws://supervisor/api/websocket` — but the auth handshake on that path
+still failed because the addon manifest lacked `homeassistant_api: true`.
+Production Chrome MCP capture against the user's HA at `192.168.86.110`
+on 2026-05-16 showed `/api/discover/*` returning 502 `ha_unauthorized`
+on v0.1.2. The SPA continued falling back to APEX_FIXTURES (dummy data)
+on every load. v0.1.3 is what actually delivers on the v0.1.2 promise.
+
+### Plan 8.x closeout
+
+With 0.1.3, Atlas is functionally complete as an HA add-on. The 8.x
+series resolved, in order:
+
+- **8.7** — distribution repo + GHCR build pipeline (custom-repo install
+  path works end-to-end).
+- **8.8** — ingress path-prefix compatibility (SPA renders inside HA's
+  ingress iframe at root and on nested-route hard-refresh).
+- **8.9** — supervisor WebSocket path (backend dials
+  `ws://supervisor/core/websocket`, not the non-existent
+  `ws://supervisor/api/websocket`).
+- **8.10** — HA Core API token scope (`SUPERVISOR_TOKEN` authenticates
+  against HA Core's auth_required handshake).
+
+Plan 9 picks up the remaining hardening: admin-PIN gate on state-mutating
+endpoints, `X-Remote-User-*` HA ingress headers for trust-model
+alignment, snapshot reconnect cache for instant render on reconnect.
+
+### Lessons
+
+- **Addon manifest API flags grant runtime token scopes — they are not
+  documentation comments.** The original Plan 8 manifest (v0.1.0) omitted
+  `homeassistant_api: true` as a "least-privilege" choice, on the theory
+  that `SUPERVISOR_TOKEN` would still authenticate against `http://supervisor/core`
+  because that endpoint is the Supervisor's HA Core proxy. The Supervisor
+  *routes* the request, but HA Core's auth layer validates token scope
+  independently — without the manifest declaration, the token has no
+  Core scope. Audit each `*_api` flag against the actual HA API endpoints
+  the addon hits. `hassio_api` (Supervisor RBAC) and `homeassistant_api`
+  (HA Core REST + WS) are siblings covering distinct surfaces, not
+  aliases. Recorded in `codev/resources/lessons-learned.md`.
+
 ## [0.1.2] - 2026-05-16
 
 ### Fixed

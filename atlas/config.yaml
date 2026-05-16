@@ -3,7 +3,7 @@
 # See codev/projects/15-v2-rebuild-plan-8-ha-add-on-pa/preflight.md for the Phase 0 findings.
 
 name: Atlas (Apex)
-version: "0.1.2"
+version: "0.1.3"
 slug: atlas
 description: A modern, design-forward dashboard for Home Assistant. Hub (1280x800 wall tablet) and Mobile surfaces from a single locked design system.
 url: https://github.com/waelsamy/home-assistant-dash
@@ -45,12 +45,20 @@ panel_admin: true  # Admin-only - matches single-admin-PIN model (parent spec se
 ports:
   8080/tcp: null
 
-# API privilege flags intentionally omitted (least-privilege per spec iter2):
-# - No hassio_api / hassio_role: Plan 6 uses SUPERVISOR_TOKEN (auto-injected
-#   regardless of API flag) to reach http://supervisor/core.
-# - No homeassistant_api: not needed for Plan 8.
-# Plan 9 adds the smallest privilege when device-pairing flow actually needs
-# Supervisor or Core REST access.
+# HA Core API access.
+# Grants SUPERVISOR_TOKEN scope for HA Core REST + WS API at
+# http://supervisor/core/api/* and ws://supervisor/core/websocket.
+# Required because Atlas's discover endpoints (areas, floors, entities)
+# and the live WS proxy both target HA Core via the supervisor proxy.
+# Without this flag, HA Core's WS auth_required handshake rejects
+# SUPERVISOR_TOKEN -> 502 ha_unauthorized (verified empirically against
+# the user's HA at 192.168.86.110, Chrome MCP, 2026-05-16, post-v0.1.2).
+# Doc: https://developers.home-assistant.io/docs/add-ons/configuration#homeassistant_api
+homeassistant_api: true
+# hassio_api intentionally NOT set: Atlas does not call Supervisor REST.
+# That surface stays denied to minimize privilege. If a future plan
+# (e.g., admin-PIN device pairing) needs Supervisor scope, add it then
+# with explicit justification.
 
 # Persistent storage: /data is auto-provisioned by Supervisor for every
 # addon (no `map:` entry needed). Plan 6's store.go writes to /data/atlas.db;

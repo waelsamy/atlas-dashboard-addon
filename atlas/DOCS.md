@@ -32,7 +32,7 @@ The `config.yaml` declares the runtime contract. Field-by-field:
 - `ingress: true`, `ingress_port: 8080`, `ingress_entry: "/"` — Supervisor's reverse proxy is the only network surface.
 - `panel_icon: mdi:view-dashboard-variant`, `panel_title: Atlas`, `panel_admin: true` — sidebar panel, admin-only visibility.
 - `ports: {8080/tcp: null}` — no host port mapped. Ingress is the only path.
-- **No `hassio_api` / `homeassistant_api` flags.** Plan 8 ships least-privilege; the runtime uses `SUPERVISOR_TOKEN` (auto-injected) to talk to `http://supervisor/core` and needs no explicit API flag. A future Plan 9 adds the smallest privilege when device-pairing actually needs Supervisor or Core REST access.
+- **`homeassistant_api: true`** (added in v0.1.3 / Plan 8.10). Grants `SUPERVISOR_TOKEN` HA Core REST + WS scope via the Supervisor proxy at `http://supervisor/core/*` and `ws://supervisor/core/websocket`. Required because Atlas reads HA's area/floor/entity registries and proxies the live state WebSocket — both target HA Core, not Supervisor itself. Without this flag, HA Core's auth handshake rejects the token and `/api/discover/*` returns 502 `ha_unauthorized` (verified empirically pre-v0.1.3). **No `hassio_api`** — Atlas does not call Supervisor's own REST API; that surface stays denied to minimize privilege. A future Plan 9 may add `hassio_api` if the admin-PIN flow needs Supervisor scope.
 - **No `map` entry.** Atlas writes to `/data/atlas.db`, which Supervisor auto-provisions for every add-on as the persistent volume. `map: [addon_config:rw]` (which exposes `/addon_configs/<slug>/`) is unused by the backend and intentionally omitted to shrink the permission surface.
 - `options: {}`, `schema: {}` — Plan 8 ships zero user-facing options. Settings live in `/api/config`; the admin-PIN flow lands in Plan 9.
 
@@ -74,9 +74,8 @@ Until those land, Atlas inherits HA's own access control: `panel_admin: true` re
 - **`ports: 8080/tcp: null`** — no host port mapped. Atlas is unreachable from the LAN except through Supervisor's ingress.
 - **`ingress: true`** — Supervisor's reverse proxy is the only public surface. HA authentication terminates at ingress before forwarding to the backend.
 - **`panel_admin: true`** — sidebar panel + "Open Web UI" button visible only to HA admins. Interim trust model until the Plan 9 admin-PIN gate ships.
-- **No `hassio_api` / `homeassistant_api`** — least privilege. The backend's HA access flows through `SUPERVISOR_TOKEN`, auto-injected by Supervisor regardless of API flags.
+- **`homeassistant_api: true`** (v0.1.3 / Plan 8.10) — Atlas's `SUPERVISOR_TOKEN` is scoped to HA Core REST + WS access only (registry reads, state subscriptions, service calls via the Supervisor proxy at `http://supervisor/core/*` and `ws://supervisor/core/websocket`). This is the smallest scope that lets the product fulfill its purpose; `hassio_api` (Supervisor RBAC, distinct surface) is intentionally NOT set. The token is server-side only — it never reaches the browser; the WS reverse-proxy injects auth during the handshake.
 - **No `map` entry** — smallest permission surface. Atlas writes only to `/data/atlas.db` (auto-provisioned per-add-on volume).
-- **`SUPERVISOR_TOKEN` server-side only** — never reaches the browser. The WS reverse-proxy injects authentication during the handshake.
 
 ## Troubleshooting (future reference)
 
