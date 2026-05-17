@@ -3,7 +3,7 @@
 # See codev/projects/15-v2-rebuild-plan-8-ha-add-on-pa/preflight.md for the Phase 0 findings.
 
 name: Atlas (Apex)
-version: "0.1.5"
+version: "0.1.6"
 slug: atlas
 description: A modern, design-forward dashboard for Home Assistant. Hub (1280x800 wall tablet) and Mobile surfaces from a single locked design system.
 url: https://github.com/waelsamy/home-assistant-dash

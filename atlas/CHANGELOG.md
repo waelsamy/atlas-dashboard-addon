@@ -4,6 +4,34 @@ All notable changes to the Atlas (Apex) add-on are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/).
 
+## [0.1.6] - 2026-05-17
+
+### Fixed
+
+- **Navigation under HA ingress** — clicking room cards, device tiles, or
+  any in-app link did nothing in v0.1.5: the URL bar stayed at `/`, the
+  page didn't change, controls couldn't be reached. Root cause: HA's
+  ingress proxy strips/redirects nested paths (e.g. `/rooms/guest_room`)
+  back to the ingress base before they reach the SPA. React Router's
+  `createBrowserRouter` was effectively dead under ingress because the
+  browser URL never changed in response to `navigate(...)`.
+
+### Changed
+
+- Switched React Router to `createHashRouter` so routes appear as
+  `#/rooms/guest_room` and survive the ingress proxy (hash fragments are
+  client-only and aren't subject to server-side path rewriting). All
+  existing routes work; URLs in the address bar now use the `#/` form
+  but the user experience is identical inside the SPA.
+
+### Verified
+
+- Direct WS service-call to `/api/ha-ws` proxy was already working
+  (tested live at the user's HA with `light.toggle` — backend correctly
+  forwards to HA and gets `success: true`). The bug was strictly in the
+  router, not the service-call path. v0.1.5 had the device-registry join
+  working too; the room screens just couldn't be reached.
+
 ## [0.1.5] - 2026-05-17
 
 ### Fixed
